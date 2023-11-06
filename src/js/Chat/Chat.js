@@ -3,7 +3,6 @@ export default class Chat {
     this.url = url;
     this.container = container;
     this.popupRegister = null;
-    this.chatWindow = null;
     this.usersOnline = [];
     this.currentUser = null;
     this.ws = new WebSocket(this.url);
@@ -14,15 +13,13 @@ export default class Chat {
 
     this.ws.addEventListener("message", (e) => {
       const response = JSON.parse(e.data);
-      console.log(response);
-
       if (response.type === "error") {
         const error = document.querySelector(".error-message");
         error.textContent = "Такой юзер уже существует!";
       } else if (response.type === "users") {
         this.usersOnline = response.data;
-        this.removePopup();
-        this.createChatWindow();
+        this.hidePopup();
+        this.showChatWindow();
       } else if (response.type === "sendMessage") {
         this.showNewMessage(response.data.data);
       }
@@ -37,6 +34,12 @@ export default class Chat {
     });
 
     window.addEventListener("beforeunload", () => {
+      const usersList = Array.from(document.querySelectorAll('.user'));
+      usersList.forEach(el => {
+        if (el.textContent === this.currentUser) {
+          el.remove();
+        }
+      })
       this.ws.send(
         JSON.stringify({ type: "deleteUser", username: this.currentUser })
       );
@@ -85,18 +88,16 @@ export default class Chat {
   }
 
   //удаление попапа с формой регистрации
-  removePopup() {
-    this.container.removeChild(this.popupRegister);
+  hidePopup() {
+    this.popupRegister.style.display = 'none';
   }
 
-  createChatWindow() {
-    this.chatWindow = document.createElement("div");
-    this.chatWindow.classList.add("chat-window");
-    this.container.appendChild(this.chatWindow);
-
-    const usersOnline = document.createElement("div");
-    usersOnline.classList.add("users-online");
-
+  showChatWindow() {
+    const chatWindow = document.querySelector('.chat-window');
+    chatWindow.style.display = 'flex';
+    const usersOnline = document.querySelector(".users-online");
+    usersOnline.textContent = '';
+   
     this.usersOnline.forEach((el) => {
       const user = document.createElement("span");
       user.classList.add("user");
@@ -109,28 +110,10 @@ export default class Chat {
       usersOnline.appendChild(user);
     });
 
-    const messagesWindow = document.createElement("div");
-    messagesWindow.classList.add("message-window");
-
-    const chatForm = document.createElement("form");
-    chatForm.classList.add("form", "chat-form");
-
-    const chatInput = document.createElement("input");
-    chatInput.classList.add("input", "chat-input");
-    chatInput.setAttribute("type", "text");
-    chatInput.setAttribute("name", "message");
-
-    const sendButton = document.createElement("button");
-    sendButton.classList.add("button", "send-button");
-    sendButton.textContent = "Отправить";
-
-    chatForm.append(chatInput, sendButton);
-
-    this.chatWindow.append(usersOnline, messagesWindow, chatForm);
-
+    const chatForm = document.querySelector(".chat-form");
+    const chatInput = document.querySelector('.chat-input');
     chatForm.addEventListener("submit", (e) => {
       e.preventDefault();
-
       const message = chatInput.value;
       const timestamp = `${new Date().toLocaleDateString()} ${new Date()
         .toLocaleTimeString()
